@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教育资源分布地图</title>
+    <!-- 1. 替换为自己的百度地图AK（需在百度地图开发者平台申请） -->
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=5npohO6O3jZTL1epxKX9gPj0IgN2pquv"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        #container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            width: 250px;
+        }
+        .control-panel h3 {
+            margin-bottom: 10px;
+            color: #6a1b9a;
+        }
+        .control-item {
+            margin: 10px 0;
+        }
+        .control-item label {
+            display: block;
+            margin-bottom: 5px;
+            color: #6a1b9a;
+        }
+        select, button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #6a1b9a;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #6a1b9a;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #7b1fa2;
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .education-item {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .education-item.xdf {
+            background: #e8f5e9;
+            border-left-color: #2e7d32;
+        }
+        .education-item.highschool {
+            background: #e3f2fd;
+            border-left-color: #1976d2;
+        }
+        .education-item.middleschool {
+            background: #fff3e0;
+            border-left-color: #ef6c00;
+        }
+        .education-item.primaryschool {
+            background: #fce4ec;
+            border-left-color: #c2185b;
+        }
+        .education-item h4 {
+            color: #6a1b9a;
+            margin-bottom: 5px;
+        }
+        .education-item p {
+            color: #7b1fa2;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+        .legend-icon.xdf {
+            background-color: #2e7d32;
+        }
+        .legend-icon.highschool {
+            background-color: #1976d2;
+        }
+        .legend-icon.middleschool {
+            background-color: #ef6c00;
+        }
+        .legend-icon.primaryschool {
+            background-color: #c2185b;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div class="control-panel">
+        <h3>控制面板</h3>
+        <div class="control-item">
+            <label>教育类型：</label>
+            <select id="educationType">
+                <option value="all">全部类型</option>
+                <option value="xdf">新东方</option>
+                <option value="highschool">高中</option>
+                <option value="middleschool">初中</option>
+                <option value="primaryschool">小学</option>
+            </select>
+        </div>
+        <div class="control-item">
+            <label>学校等级：</label>
+            <select id="schoolLevel">
+                <option value="all">全部等级</option>
+                <option value="key">重点</option>
+                <option value="normal">普通</option>
+            </select>
+        </div>
+        <button onclick="toggleInfo()">显示/隐藏详情</button>
+        <button onclick="showStatistics()">显示统计信息</button>
+        <button onclick="toggleLabels()">显示/隐藏学校名称</button>
+    </div>
+    <div class="info-panel" id="infoPanel">
+        <h3>学校详情</h3>
+        <div id="infoList"></div>
+    </div>
+    <div class="legend">
+        <h4>图例</h4>
+        <div class="legend-item">
+            <div class="legend-icon xdf"></div>
+            <span>新东方</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon highschool"></div>
+            <span>高中</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon middleschool"></div>
+            <span>初中</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon primaryschool"></div>
+            <span>小学</span>
+        </div>
+    </div>
+
+    <script>
+        // 2. 初始化地图（坐标为厦门市中心，缩放级别12）
+        var map = new BMap.Map("container");
+        var centerPoint = new BMap.Point(118.096, 24.485); // 厦门中心点坐标
+        map.centerAndZoom(centerPoint, 12); // 缩放级别12（市级）
+        map.enableScrollWheelZoom(); // 启用滚轮缩放
+        map.addControl(new BMap.NavigationControl()); // 添加导航控件（上下左右键）
+        map.addControl(new BMap.ScaleControl()); // 添加比例尺控件
+
+        // 3. 教育数据
+        var educationData = {
+             "福建省厦门第一中学（思明校区）": {
+            point: new BMap.Point(118.101649624267, 24.4641303875126),
+            type: ["middleschool","highschool"],
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区文园路93号（思明校区）",
+            phone: "0592-2021908"
+        },
+
+            "福建省厦门第一中学（海沧校区）": {
+            point: new BMap.Point(117.971202549001, 24.5470085071231),
+            type: ["middleschool","highschool"],
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市海沧区东孚南路99号（海沧校区）",
+            phone: "0592-6317005"
+        },
+
+            "福建省厦门第一中学（图强校区）": {
+            point: new BMap.Point(118.098205700604, 24.4635135991474),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区将军祠路39号（图强校区、区属市办、仅初中）",
+            phone: "0592-2021908"
+        },
+
+            "福建省厦门第二中学（鼓浪屿校区）": {
+            point: new BMap.Point(118.073539, 24.45314),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区安海路14号（鼓浪屿校区初中部，集美、五缘湾校区高中部）",
+            phone: "0592-2063730"
+        },
+
+            "福建省厦门第六中学（嘉禾校区）": {
+            point: new BMap.Point(118.088394677319, 24.4661167361079),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区厦禾路344号（厦禾校区初中部，东渡、同安校区高中部）",
+            phone: "0592-2022678"
+        },
+
+            "福建省厦门双十中学（镇海校区）": {
+            point: new BMap.Point(118.09218552657, 24.4567261763328),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区镇海路33号（镇海校区）",
+            phone: "0592-2117888"
+        },
+
+            "福建省厦门双十中学（翔安校区）": {
+            point: new BMap.Point(118.254575896607, 24.6242163835928),
+            type: ["middleschool","highschool"],
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区浦滨西二路800号（翔安校区）",
+            phone: "0592-2113933"
+        },
+
+            "厦门外国语学校（思明校区）": {
+            point: new BMap.Point(118.098411143074, 24.4839314444895),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区湖滨北路88号（思明校区）",
+            phone: "0592-5110967"
+        },
+
+            "厦门外国语学校（集美校区）": {
+            point: new BMap.Point(118.105611151565, 24.5787562968191),
+            type: ["middleschool","highschool"],
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区福鼎山东路1号（集美校区）",
+            phone: "0592-6197028"
+        },
+
+            "福建省厦门集美中学（浔江校区）": {
+            point: new BMap.Point(118.106487897742, 24.5734703966564),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区鳌园路19号（浔江校区）",
+            phone: "0592-6068304"
+        },
+
+            "福建省同安第一中学（轮山校区）": {
+            point: new BMap.Point(118.163142499118, 24.742565818923),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区轮山路1号",
+            phone: "0592-7229135"
+        },
+
+            "福建省同安第一中学附属学校": {
+            point: new BMap.Point(118.198922456722, 24.6756717143716),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区海城二路1111号",
+            phone: "0592-7228860"
+        },
+
+            "厦门大学附属科技中学（思明校区）": {
+            point: new BMap.Point(118.124798957251, 24.436091183153),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市思明区龙虎山路11号（思明校区）",
+            phone: "0592-2510024 0592-2569551假期"
+        },
+
+            "厦门大学附属科技中学（翔安校区）": {
+            point: new BMap.Point(118.251745425777, 24.5861255539057),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区金泉路99号（翔安校区）",
+            phone: "0592-2881203 0592-2881221假期"
+        },
+
+            "厦门实验中学（西柯校区）": {
+            point: new BMap.Point(118.172257784786, 24.6524367591099),
+            type: ["primaryschool","middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学、小学",
+            description: "厦门市同安区西柯镇滨海西大道6666号",
+            phone: "0592-7208266"
+        },
+
+            "厦门市翔安第一中学": {
+            point: new BMap.Point(118.251797707157, 24.6741291250102),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区马巷镇巷西路267号",
+            phone: "0592-7622102 0592-7622159"
+        },
+
+            "厦门市第五中学": {
+            point: new BMap.Point(118.140284576441, 24.4828420193253),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市思明区莲前西路203号",
+            phone: "0592-3525750 0592-3630922假期"
+        },
+
+            "厦门五缘实验学校（五缘校区）": {
+            point: new BMap.Point(118.181528028154, 24.5201722672243),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市五缘学村五缘西四里6-8号",
+            phone: "0592-5721158"
+        },
+
+            "厦门五缘实验学校（同安校区）": {
+            point: new BMap.Point(118.178524723344, 24.6680485476311),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区智谷西四路89号",
+            phone: "0592-5797559"
+        },
+
+            "厦门五缘第二实验学校": {
+            point: new BMap.Point(118.168466576213, 24.5269718439275),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市湖里区钟智西三路97号",
+            phone: "0592-3530006"
+        },
+
+            "厦门市音乐学校（鼓浪屿校区）": {
+            point: new BMap.Point(118.078381445464, 24.4476857370309),
+            type: ["primaryschool","middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办中等职业学校、高中、初中、小学",
+            description: "厦门市思明区鼓浪屿漳州路32号",
+            phone: "0592-2069326"
+        },
+
+            "厦门市音乐学校（五通校区）": {
+            point: new BMap.Point(118.19288476573, 24.5270471260416),
+            type: ["primaryschool","middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办中等职业学校、高中、初中、小学",
+            description: "厦门市湖里区美仑路396号",
+            phone: "0592-5572786 0592-5572793假期"
+        },
+
+            "中央音乐学院鼓浪屿钢琴学校": {
+            point: new BMap.Point(118.181528028154, 24.5201722672243),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办中等职业学校、初中、小学",
+            description: "厦门市五缘学村五缘西四里1号",
+            phone: "0592-5769450"
+        },
+
+            "厦门市体育运动学校": {
+            point: new BMap.Point(118.177765745019, 24.6593095323852),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办中等职业学校、初中、小学",
+            description: "厦门市同安区滨海西大道6599号",
+            phone: "0592-5144890"
+        },
+
+            "厦门高新学校": {
+            point: new BMap.Point(118.185525840085, 24.5091222149488),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市湖里区高林中路58号",
+            phone: "0592-3966100"
+        },
+
+            "厦门市第十一中学（滨南校区）": {
+            point: new BMap.Point(118.091870221336, 24.4718779298479),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区湖滨南路22号（滨南校区）",
+            phone: "0592-2275272"
+        },
+
+            "厦门市第十一中学（滨北校区）": {
+            point: new BMap.Point(118.120400853476, 24.4945292258797),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "思明区体育路168号（滨北校区）（过渡）",
+            phone: "0592-2275272"
+        },
+
+            "厦门市第九中学": {
+            point: new BMap.Point(118.115261467994, 24.470487298602),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区厦禾路848号",
+            phone: "0592-5852048"
+        },
+
+            "厦门市槟榔中学（槟榔校区）": {
+            point: new BMap.Point(118.116581887263, 24.487558846643),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区槟榔西里199号（槟榔校区）（仅初一初二）",
+            phone: "0592-5142536"
+        },
+
+            "厦门市槟榔中学（湖光校区）": {
+            point: new BMap.Point(118.115640552919, 24.4828909371944),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区湖光路95号（湖光校区）（过渡）（仅初三）",
+            phone: "0592-5142536"
+        },
+
+            "厦门市莲花中学": {
+            point: new BMap.Point(118.135714, 24.489817),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区莲花南路15号（本部） 思明区嘉禾路118号（初一部）",
+            phone: "0592-5552852"
+        },
+
+            "厦门市金鸡亭中学": {
+            point: new BMap.Point(118.15039302868, 24.4806660179542),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区金鸡亭小区西林东里1号",
+            phone: "0592-5906625"
+        },
+
+            "厦门市逸夫中学": {
+            point: new BMap.Point(118.162463380153, 24.4861945342539),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "思明区洪莲中路209号",
+            phone: "0592-5982857"
+        },
+
+            "厦门双十中学思明分校": {
+            point: new BMap.Point(118.175897988203, 24.4733950017728),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区会展北里43号",
+            phone: "0592-5989178"
+        },
+
+            "厦门外国语学校瑞景分校": {
+            point: new BMap.Point(118.162429154713, 24.4822320653228),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "思明区莲前东路2号",
+            phone: "0592-3586959"
+        },
+
+            "厦门市华侨中学": {
+            point: new BMap.Point(118.097489930774, 24.4506625575258),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "思明区厦港新村5号",
+            phone: "0592-2522500"
+        },
+
+            "福建省厦门第一中学思明分校": {
+            point: new BMap.Point(118.170970692652, 24.4855483406998),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市思明区洪莲北路1906号",
+            phone: "0592-5921906"
+        },
+
+            "厦门市大同中学（兴华校区）": {
+            point: new BMap.Point(118.097298322209, 24.4607131392696),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "思明区兴华路2号（兴华校区）",
+            phone: "0592-2077138（兴华校区）"
+        },
+
+            "厦门市大同中学（前埔校区）": {
+            point: new BMap.Point(118.176429246081, 24.4708531085634),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "思明区前埔古楼南里32号（前埔校区）",
+            phone: "0592-5929006（前埔校区）"
+        },
+
+            "厦门市松柏中学（长青北里校区）": {
+            point: new BMap.Point(118.126862185346, 24.4961592195221),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "思明区长青北里1号（长青北里校区）",
+            phone: "0592-3935099(长青北里校区)"
+        },
+
+            "厦门市松柏中学（西浦校区）": {
+            point: new BMap.Point(118.131776724959, 24.5007203424681),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "思明区西浦路58号（西浦校区）",
+            phone: "0592-3935099（西浦校区）"
+        },
+
+            "厦门市湖滨中学": {
+            point: new BMap.Point(118.114361006551, 24.4801580020296),
+            type: ["middleschool","highschool"],
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "思明区湖滨三里1号",
+            phone: "0592-5056640"
+        },
+
+            "厦门市思明区观音山音乐学校": {
+            point: new BMap.Point(118.199947063986, 24.4941037206941),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "思明区高雄路69号",
+            phone: "0592-5928033"
+        },
+
+            "厦门市云顶学校": {
+            point: new BMap.Point(118.154481396716, 24.4800550666842),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "思明区西林东路21号",
+            phone: "0592-5356502（办公室） 0592-5356511（值班室）"
+        },
+
+            "厦门市第三中学": {
+            point: new BMap.Point(118.129167596606, 24.5169248062515),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "湖里区兴隆路627号",
+            phone: "0592-5711049"
+        },
+
+            "厦门市禾山中学": {
+            point: new BMap.Point(118.149464809597, 24.502608451251),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区仙岳路1866号",
+            phone: "0592-5232077"
+        },
+
+            "厦门市湖里中学": {
+            point: new BMap.Point(118.104067323716, 24.5086928837635),
+            type: "middleschool",
+            level: "key",
+            schooltype: "公办初中",
+            description: "湖里区南山路10号",
+            phone: "0592-6032131"
+        },
+
+            "厦门市金尚中学": {
+            point: new BMap.Point(118.156493062075, 24.4968630663349),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "湖里区金尚小区金安里8号",
+            phone: "0592-5256708"
+        },
+
+            "厦门外国语学校湖里分校": {
+            point: new BMap.Point(118.108175544303, 24.5338389300024),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "湖里区长岸路1862号",
+            phone: "0592-2938001"
+        },
+
+            "厦门市湖里实验中学": {
+            point: new BMap.Point(118.152048426074, 24.521509741779),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "湖里区枋湖北路280号",
+            phone: "0592-5768323"
+        },
+
+            "厦门市蔡塘学校": {
+            point: new BMap.Point(118.16449444891, 24.490018763957),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区吕岭路972号",
+            phone: "0592-5027282"
+        },
+
+            "厦门市龙湫亭实验学校": {
+            point: new BMap.Point(118.178401565659, 24.4983017391857),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区龙湫亭路38号",
+            phone: "0592-5510183"
+        },
+
+            "厦门市金林湾实验学校": {
+            point: new BMap.Point(118.153588121717, 24.5175731381119),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区高林西里20号",
+            phone: "0592-5239101"
+        },
+
+            "厦门市梧桐实验学校": {
+            point: new BMap.Point(118.157989818715, 24.5204208924478),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区枋湖路386号",
+            phone: "0592-5707868"
+        },
+
+            "厦门市南山实验学校": {
+            point: new BMap.Point(118.105234492064, 24.5082546041459),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "湖里区南山路9-1号",
+            phone: "0592-5550726"
+        },
+
+            "厦门市尚文实验学校": {
+            point: new BMap.Point(118.157629328714, 24.4960681351071),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区金盛路138号",
+            phone: "0592-5577221"
+        },
+
+            "厦门双十中学湖里分校": {
+            point: new BMap.Point(118.153588121717, 24.5175731381119),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区凤展路66号",
+            phone: "0592-5567817"
+        },
+
+            "厦门市湖里创新实验学校": {
+            point: new BMap.Point(118.162438946243, 24.5335801411546),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "湖里区护安路866号",
+            phone: "0592-5611887"
+        },
+
+            "厦门市第十中学": {
+            point: new BMap.Point(118.056183867166, 24.5729747549335),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区杏林街道纺织东路7号",
+            phone: "0592-6360922"
+        },
+
+            "厦门市杏南中学（杏林校区）": {
+            point: new BMap.Point(118.047286690076, 24.5670368408929),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区杏滨街道杏南路32号",
+            phone: "0592-6220790"
+        },
+
+            "厦门市杏南中学（后溪校区）": {
+            point: new BMap.Point(118.060645570972, 24.6441501218972),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区后溪镇锦珩路168号",
+            phone: "0592-6360989"
+        },
+
+            "厦门市集美区灌口中学（本部）": {
+            point: new BMap.Point(118.008234205501, 24.6095590054439),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区灌口镇安仁大道1207号",
+            phone: "0592-6091022"
+        },
+
+            "厦门市集美区乐安中学": {
+            point: new BMap.Point(118.108511510564, 24.5923838944766),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区侨英街道同集南路91号",
+            phone: "0592-6157589"
+        },
+
+            "厦门市集美区上塘中学": {
+            point: new BMap.Point(117.996896961155, 24.616105329352),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区灌口镇灌口大道1111号",
+            phone: "0592-6092177"
+        },
+
+            "厦门市集美区后溪中学": {
+            point: new BMap.Point(118.068579135742, 24.6311577344008),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区后溪镇后垵村龙头里71号",
+            phone: "0592-6260023"
+        },
+
+            "厦门市集美区杏东中学": {
+            point: new BMap.Point(118.067435502997, 24.5744643030911),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区杏林街道杏滨路2号",
+            phone: "0592-6195218"
+        },
+
+            "厦门市集美实验学校": {
+            point: new BMap.Point(118.125440796538, 24.6095346946677),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区侨英街道东安路51号",
+            phone: "0592-6290353"
+        },
+
+            "厦门市集美区诚毅中学": {
+            point: new BMap.Point(118.000583427306, 24.5688010328716),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区杏林街道杏北六里126号",
+            phone: "0592-7792706"
+        },
+
+            "厦门市集美区蔡林学校": {
+            point: new BMap.Point(118.029870971669, 24.5609882150631),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市集美区杏滨街道西滨路300号",
+            phone: "0592-6293310"
+        },
+
+            "福建省厦门集美中学附属滨水学校": {
+            point: new BMap.Point(118.095336872128, 24.6015767653185),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市集美区侨英街道滨水一里112-1号",
+            phone: "0592-6193818"
+        },
+
+            "厦门市集美区西亭学校（厦门外国语学校集美分校）": {
+            point: new BMap.Point(118.054150642476, 24.6015875251721),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市集美区杏林街道西亭社区九天湖六里86号",
+            phone: "0592-6251710"
+        },
+
+            "华侨大学集美附属学校（侨英校区）": {
+            point: new BMap.Point(118.08609276945, 24.6149424927108),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市集美区侨英街道兑山西珩路288号",
+            phone: "0592-6665098"
+        },
+
+            "厦门市集美区教师进修学校附属柏涛实验学校": {
+            point: new BMap.Point(118.023269773631, 24.5736628855229),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市集美区杏滨街道西滨社区西滨路26号",
+            phone: "0592-6060829"
+        },
+
+            "厦门海沧实验中学": {
+            point: new BMap.Point(118.044795419406, 24.5030877693529),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市海沧区海达路176号",
+            phone: "0592-6199001"
+        },
+
+            "厦门市海沧中学": {
+            point: new BMap.Point(118.001868004185, 24.5371388719582),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市海沧区新阳工业区新景路159号",
+            phone: "0592-6510390"
+        },
+
+            "厦门海沧华附实验中学": {
+            point: new BMap.Point(117.988219868915, 24.4855840211948),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市海沧区石岑路1号",
+            phone: "0592-6080683"
+        },
+
+            "厦门市海沧区东孚中学": {
+            point: new BMap.Point(117.946554932257, 24.5725118091501),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市海沧区过坂路58号",
+            phone: "0592-6205621"
+        },
+
+            "厦门市海沧区芸景实验中学": {
+            point: new BMap.Point(117.942517767635, 24.571596428386),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市海沧区东孚街道芸美路99号",
+            phone: "0592-3926703"
+        },
+
+            "厦门市海沧区北附学校（京口校区）": {
+            point: new BMap.Point(118.038803362335, 24.4631580461141),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区兴港路177号",
+            phone: "0592-3532946"
+        },
+
+            "厦门市海沧区北附学校（思齐校区）": {
+            point: new BMap.Point(117.980711472143, 24.5354270714052),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区后祥北路1号",
+            phone: "0592-3873615"
+        },
+
+            "厦门双十中学海沧附属学校": {
+            point: new BMap.Point(118.058555393712, 24.4996523551398),
+            type: ["primaryschool","middleschool"],
+            level: "key",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区沧林东三路309号",
+            phone: "0592-6885183"
+        },
+
+            "厦门外国语学校海沧附属学校（兴港校区）": {
+            point: new BMap.Point(118.029653042752, 24.4935849904172),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门海沧区兴港二里1号",
+            phone: "0592-6052212"
+        },
+
+            "厦门市海沧区教师进修学校附属学校": {
+            point: new BMap.Point(118.039561711846, 24.4903258185984),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区霞光东里326号",
+            phone: "0592-6887835"
+        },
+
+            "厦门市海沧区鳌冠学校": {
+            point: new BMap.Point(118.063462477389, 24.528338749615),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区鳌冠社区霞美新村266号",
+            phone: "0592-6588056"
+        },
+
+            "厦门市马銮湾实验学校": {
+            point: new BMap.Point(117.958337107322, 24.5544901672938),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区东瑶西三路98号",
+            phone: "0592-631067"
+        },
+
+            "厦门双十中学海沧附属学校庚西分校": {
+            point: new BMap.Point(118.039561711846, 24.4903258185984),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市海沧区新景东里400号",
+            phone: "0592-6153617"
+        },
+
+            "厦门市同安实验中学": {
+            point: new BMap.Point(118.161405176263, 24.7124340853728),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区祥和街道阳翟二路777号",
+            phone: "0592-7029915"
+        },
+
+            "厦门市五显中学": {
+            point: new BMap.Point(118.207764927006, 24.7608377784959),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区五显镇军村村军村里351号",
+            phone: "0592-7300837"
+        },
+
+            "厦门市第二外国语学校": {
+            point: new BMap.Point(118.142918857348, 24.7328379875281),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区祥平街道银湖西路376号",
+            phone: "0592-7037053"
+        },
+
+            "厦门市国祺中学": {
+            point: new BMap.Point(118.187847517584, 24.6536214104184),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区西柯街道丙洲社区下乡北里666号",
+            phone: "0592-7110115"
+        },
+
+            "厦门市汀溪中学": {
+            point: new BMap.Point(118.146784535448, 24.7797733337347),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区汀溪镇隘头村大岭溪北路699号",
+            phone: "0592-7155284"
+        },
+
+            "厦门市柑岭中学": {
+            point: new BMap.Point(118.124327167198, 24.7236338840188),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区新民街道同辉北路99号",
+            phone: "0592-7039692"
+        },
+
+            "厦门市莲美中学": {
+            point: new BMap.Point(118.074299724889, 24.7546773151222),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区莲花镇莲美街539号",
+            phone: "0592-7050015"
+        },
+
+            "厦门市凤南中学": {
+            point: new BMap.Point(118.069163663137, 24.6907998387601),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区新美街道凤南社区大埔里1号",
+            phone: "0592-7058438"
+        },
+
+            "厦门市育才中学": {
+            point: new BMap.Point(118.169838019235, 24.7465438294979),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区五显镇轮山路299号",
+            phone: "0592-7227083"
+        },
+
+            "厦门市新民中学": {
+            point: new BMap.Point(118.141323376933, 24.7186733896896),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区新民大道1728号",
+            phone: "0592-7029261"
+        },
+
+            "厦门市美林中学": {
+            point: new BMap.Point(118.152332560106, 24.6280602556811),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区美林街道滨海西大道5001号",
+            phone: "0592-7011471"
+        },
+
+            "厦门市城东中学": {
+            point: new BMap.Point(118.204208355832, 24.7204138770408),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区洪塘镇洪塘路227号",
+            phone: "0592-7251807"
+        },
+
+            "厦门市洪塘中学": {
+            point: new BMap.Point(118.207635391352, 24.7176611131257),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区洪塘镇洪塘村洪塘里232号",
+            phone: "0592-7251057"
+        },
+
+            "厦门市东山中学": {
+            point: new BMap.Point(118.159212053191, 24.7471499381059),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区大同街道东山路218号",
+            phone: "0592-7198002"
+        },
+
+            "厦门市文笔塔学校（厦门市东山中学分校）": {
+            point: new BMap.Point(118.171616753974, 24.7336876014985),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区大同街道环城东路168号",
+            phone: "0592-7198002"
+        },
+
+            "厦门市同安区教师进修学校附属中学": {
+            point: new BMap.Point(118.12666222254, 24.676933057426),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区新美街道集隆路1555号",
+            phone: "0592-7360223"
+        },
+
+            "厦门市滨城中学": {
+            point: new BMap.Point(118.170006451518, 24.6776114159465),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区西柯街道西福北路1999号",
+            phone: "0592-7137566"
+        },
+
+            "厦门市科创中学": {
+            point: new BMap.Point(118.154897248142, 24.6344940966319),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市同安区西柯街道官浔东路100号",
+            phone: "0592-7129991"
+        },
+
+            "厦门市竹坝学校": {
+            point: new BMap.Point(118.211208850669, 24.78052986191),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区五显镇竹坝新村139号",
+            phone: "0592-7232951"
+        },
+
+            "厦门市梧侣学校": {
+            point: new BMap.Point(118.12076017568, 24.701717890364),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区新美街道同宏路568号",
+            phone: "0592-7151568"
+        },
+
+            "厦门市后田学校": {
+            point: new BMap.Point(118.137988327897, 24.6148456644474),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区西柯街道观学路9号",
+            phone: "0592-7029869"
+        },
+
+            "厦门市新教育学校": {
+            point: new BMap.Point(118.140868654684, 24.6904042271246),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区美林街道四口圳里6号",
+            phone: "0592-7899066"
+        },
+
+            "厦门市兴贤学校": {
+            point: new BMap.Point(118.158563476613, 24.7291139753466),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区祥和街道祥丰社区兴贤路88号",
+            phone: "0592-7122989"
+        },
+
+            "厦门市祥和学校": {
+            point: new BMap.Point(118.158563476613, 24.7291139753466),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市同安区祥和街道瑶江路985号",
+            phone: "0592-7127222"
+        },
+
+            "厦门市翔安区实验学校": {
+            point: new BMap.Point(118.255544898761, 24.636895666083),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市翔安区新店街道祥吴村下曾里333号",
+            phone: "0592-7807793"
+        },
+
+            "厦门市新圩学校": {
+            point: new BMap.Point(118.265316845756, 24.7484960332698),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市翔安区新圩镇山岬路105号",
+            phone: "0592-7070124"
+        },
+
+            "厦门市大嶝中学": {
+            point: new BMap.Point(118.339629977519, 24.5639720183081),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区大嶝山头里116号",
+            phone: "0592-7094009"
+        },
+
+            "厦门市鸿渐中学": {
+            point: new BMap.Point(118.311884644056, 24.6709927462505),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区内厝镇新安村官塘108号",
+            phone: "0592-3758919"
+        },
+
+            "厦门市彭厝学校": {
+            point: new BMap.Point(118.251167994995, 24.5604410068737),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市翔安区金海街道彭厝社区学校西里63号",
+            phone: "0592-7805300"
+        },
+
+            "厦门市莲河中学": {
+            point: new BMap.Point(118.347669272848, 24.5924546190558),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区香山街道莲河社区中学路1号",
+            phone: "0592-7081730"
+        },
+
+            "厦门市民安学校": {
+            point: new BMap.Point(118.214305938575, 24.6431493854024),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区民安街道舫山西二路453号",
+            phone: "0592-7610369"
+        },
+
+            "厦门市志翔中学": {
+            point: new BMap.Point(118.233527071396, 24.6816232097305),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区民安街道前庵社区垵边路333号",
+            phone: "0592-7065375"
+        },
+
+            "厦门市新店中学": {
+            point: new BMap.Point(118.253683789406, 24.6128634196551),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区新店街道新莲路1号",
+            phone: "0592-7887001"
+        },
+
+            "厦门市内厝中学": {
+            point: new BMap.Point(118.281427236428, 24.6710465152917),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区内厝镇上塘社区内厝232号",
+            phone: "0592-3757299"
+        },
+
+            "厦门市诗坂中学": {
+            point: new BMap.Point(118.266843066817, 24.7326779919665),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区新圩镇诗坂村诗坂路19号",
+            phone: "0592-7070134"
+        },
+
+            "厦门市翔安中学": {
+            point: new BMap.Point(118.247612915515, 24.5806372957632),
+            type: ["middleschool","highschool"],
+            level: "normal",
+            schooltype: "公办完全中学",
+            description: "厦门市翔安区新澳路1111号",
+            phone: "0592-7066111"
+        },
+
+            "厦门双十中学翔安附属学校": {
+            point: new BMap.Point(118.230721393798, 24.5734155993016),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市凤翔街道东界南路696号",
+            phone: "0592-7801966"
+        },
+
+            "厦门市翔城中学": {
+            point: new BMap.Point(118.254575896607, 24.6242163835928),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "公办初中",
+            description: "厦门市翔安区金海街道洞庭南路369号",
+            phone: "0592-7762357"
+        },
+
+            "厦门市翔安火炬实验学校": {
+            point: new BMap.Point(118.198485610752, 24.6666670937635),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市翔安区民安街道西炉南路1号",
+            phone: "0592-7800620"
+        },
+
+            "厦大附属翔安实验学校": {
+            point: new BMap.Point(118.254575896607, 24.6242163835928),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "公办九年一贯制",
+            description: "厦门市翔安区沙美南二路199号",
+            phone: "0592-7066966"
+        },
+
+            "厦门英才学校": {
+            point: new BMap.Point(118.048312375307, 24.5912737350739),
+            type: ["primaryschool","middleschool","highschool"],
+            level: "normal",
+            schooltype: "民办高中、初中、小学、幼儿园教育",
+            description: "厦门市集美区杏林北三路63号",
+            phone: "0592-6251478"
+        },
+
+            "厦门工学院附属学校": {
+            point: new BMap.Point(118.074819035304, 24.6231712219217),
+            type: ["primaryschool","middleschool","highschool"],
+            level: "normal",
+            schooltype: "民办高中、初中、小学、幼儿园教育",
+            description: "厦门市集美区孙坂南路1251号",
+            phone: "0592-3100288"
+        },
+
+            "厦门市思明区东浦学校": {
+            point: new BMap.Point(118.137446200522, 24.4776175624248),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "民办全日制普通初等教育、初级中等教育",
+            description: "厦门市思明区浦南二路14号",
+            phone: "0592-5985688"
+        },
+
+            "厦门市湖里区超强学校": {
+            point: new BMap.Point(118.112379793749, 24.5282591946699),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区殿前4组",
+            phone: "0592-6032373"
+        },
+
+            "厦门市湖里区博林民办学校": {
+            point: new BMap.Point(118.14327611345, 24.5309717594175),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区枋湖社区林后社20号",
+            phone: "0592-3922789"
+        },
+
+            "厦门市湖里区光华学校": {
+            point: new BMap.Point(118.127219441447, 24.5480279346291),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区高崎北三路195号、199号",
+            phone: "0592-5971680"
+        },
+
+            "厦门市湖里区金鹰学校": {
+            point: new BMap.Point(118.144668936142, 24.5185531089677),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区枋湖路2号",
+            phone: "0592-5600220"
+        },
+
+            "厦门市湖里区信成火炬学校": {
+            point: new BMap.Point(118.137511597163, 24.5264646746963),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区禾山路1601-1607号、1615号",
+            phone: "0592-5851666 0592-2190999"
+        },
+
+            "厦门市华师希平双语学校": {
+            point: new BMap.Point(118.157900077994, 24.4915830494159),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "厦门市湖里区吕岭路868号",
+            phone: "0592-2077377"
+        },
+
+            "厦门市集美区英贤学校": {
+            point: new BMap.Point(118.106983133569, 24.614278901395),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "集美区杏林街道董任西二路555号、天安路395-399号",
+            phone: "0592-3756716 0592-6152001"
+        },
+
+            "厦门市集美区华锐双语学校": {
+            point: new BMap.Point(118.032483423752, 24.5592022204931),
+            type: ["primaryschool","middleschool"],
+            level: "normal",
+            schooltype: "民办九年一贯制",
+            description: "集美区杏滨街道西滨路388-2号1-3楼",
+            phone: "0592-6198651"
+        },
+
+            "厦门华兴实验学校": {
+            point: new BMap.Point(118.089297564187, 24.6995990787371),
+            type: "middleschool",
+            level: "normal",
+            schooltype: "民办初中",
+            description: "厦门市同安区凤南路888号",
+            phone: "0592-7369188"
+        },
+
+            "福建省厦门第二中学（五缘校区）": {
+            point: new BMap.Point(118.181528028154, 24.5201722672243),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市五缘学村五缘西四里1号",
+            phone: "0592-5768822"
+        },
+
+            "福建省厦门第二中学（集美校区）": {
+            point: new BMap.Point(118.103434916637, 24.5820190622496),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区凤歧路1号",
+            phone: "0592-6098173"
+        },
+
+            "福建省厦门第六中学（东渡校区）": {
+            point: new BMap.Point(118.095300760247, 24.5010362485996),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市湖里区和宁路50号（本部）",
+            phone: "0592-5611580"
+        },
+
+            "福建省厦门第六中学（同安校区）": {
+            point: new BMap.Point(118.158563476613, 24.7291139753466),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市同安区汇集路601号",
+            phone: "0592-7123560"
+        },
+
+            "福建省厦门双十中学（枋湖校区）": {
+            point: new BMap.Point(118.162207273252, 24.5217129958846),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市枋湖路789号（枋湖校区）（本部）",
+            phone: "0592-5766166"
+        },
+
+            "厦门外国语学校（海沧校区）": {
+            point: new BMap.Point(118.044200202176, 24.4611629340281),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市海沧区嵩屿路89号（海沧校区）（本部）",
+            phone: "0592-6893088"
+        },
+
+            "福建省厦门集美中学（侨英校区）": {
+            point: new BMap.Point(118.121816043976, 24.60120444095),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区凤安路323号（侨英校区）",
+            phone: "0592-6105048"
+        },
+
+            "福建省厦门集美中学（后溪校区）": {
+            point: new BMap.Point(118.070740279137, 24.6327534147724),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学",
+            description: "厦门市集美区后溪镇岩通路9号（后溪校区）",
+            phone: "0592-6269928"
+        },
+
+            "福建省同安第一中学（滨海校区）": {
+            point: new BMap.Point(118.198922456722, 24.6756717143716),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学、小学",
+            description: "厦门市同安区海城二路1111号",
+            phone: "0592-7228860"
+        },
+
+            "厦门实验中学（祥平校区）": {
+            point: new BMap.Point(118.140940788616, 24.7335496780845),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完全中学、小学",
+            description: "厦门市同安区祥平街道学成路666号（祥平街道）",
+            phone: "0592-7208208"
+        },
+
+            "厦门市松柏中学（祥云校区）": {
+            point: new BMap.Point(118.159001939533, 24.4820640993001),
+            type: "highschool",
+            level: "key",
+            schooltype: "公办完中",
+            description: "思明区云顶中路258号（祥云校区）",
+            phone: "0592-3939599"
+        },
+
+            "厦门市集美区灌口中学（灌南校区）": {
+            point: new BMap.Point(118.103434916637, 24.5820190622496),
+            type: "highschool",
+            level: "key",
+            schooltype: "完全中学",
+            description: "厦门市集美区銮井南里99号",
+            phone: "0592-6091022"
+        },
+
+            "厦门沧江高级中学": {
+            point: new BMap.Point(117.982072854143, 24.4888338629964),
+            type: "highschool",
+            level: "normal",
+            schooltype: "公办普通高中",
+            description: "厦门市海沧区三都路21号",
+            phone: "0592-3926618"
+        },
+
+            "厦门熹海高级中学": {
+            point: new BMap.Point(118.039561711846, 24.4903258185984),
+            type: "highschool",
+            level: "normal",
+            schooltype: "公办普通高中",
+            description: "厦门市海沧区鼎美路99号",
+            phone: "0592-3929011"
+        },
+
+            "厦门市九溪高级中学": {
+            point: new BMap.Point(118.285643343507, 24.5784296622972),
+            type: "highschool",
+            level: "normal",
+            schooltype: "高级中学",
+            description: "厦门市翔安区新店街道蔡厝社区东侧",
+            phone: "0592-3666555"
+        },
+
+            "厦门康桥中学": {
+            point: new BMap.Point(118.105022761456, 24.4927232850384),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市思明区七星路80号",
+            phone: "0592-5360838"
+        },
+
+            "厦门市国贸双语高级中学": {
+            point: new BMap.Point(118.166690087237, 24.48725992416),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市思明区洪莲中二路1-11号",
+            phone: "0592-5928723"
+        },
+
+            "厦门市华锐莱普顿高级中学": {
+            point: new BMap.Point(118.032483423752, 24.5592022204931),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市集美区西滨路388-2号",
+            phone: "0592-6198610"
+        },
+
+            "厦门市华师希平双语高级中学": {
+            point: new BMap.Point(118.158238852835, 24.491537408232),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市湖里区吕岭路876号",
+            phone: "0592-3690107"
+        },
+
+            "厦门市央美恒一高级中学": {
+            point: new BMap.Point(118.039561711846, 24.4903258185984),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市海沧区鼎孚路6号",
+            phone: "18860008211"
+        },
+
+            "厦门市金鹰高级中学": {
+            point: new BMap.Point(118.138107533038, 24.4768079554642),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市思明区浦南三路22号",
+            phone: "0592-3709851"
+        },
+
+            "厦门市湖师郡雅高级中学": {
+            point: new BMap.Point(118.137085980013, 24.7891420126486),
+            type: "highschool",
+            level: "normal",
+            schooltype: "民办高中教育",
+            description: "厦门市同安区汀溪镇褒美村西坑共和1号",
+            phone: "0592-7772152"
+        },
+            "新东方育秀校区": {
+                point: new BMap.Point(118.118580,24.491895),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "思明区湖滨北路育秀里36号育秀中心2楼、3楼",
+                phone: "0592-5900950",
+            },
+
+            "新东方思北校区": {
+                point: new BMap.Point(118.086187,24.467875),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "思明区湖滨西路10号东方时代广场2楼",
+                phone: "0592-5902639/5900651",
+            },
+
+            "新东方瑞景校区": {
+                point: new BMap.Point(118.164692,24.483257),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "思明区莲前东路123号加州商业广场3楼（靠近电影院一侧）",
+                phone: "0592-5106712",
+            },
+
+            "新东方海沧校区": {
+                point: new BMap.Point(118.137736,24.512129),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "海沧区阿罗海城市广场三楼（靠近北区）",
+                phone: "0592-5122870",
+            },
+
+            "新东方文灶宝龙校区": {
+                point: new BMap.Point(118.109213,24.477012),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "思明区禾祥东一里28号（2-4楼）",
+                phone: "",
+            },
+
+            "新东方五缘湾校区": {
+                point: new BMap.Point(118.167310,24.514679),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中、高中培训机构",
+                description: "湖里区金湖路518号汇盈大厦3楼",
+                phone: "18950153476（湾湾老师）",
+            },
+            
+            "新东方嘉禾校区": {
+                point: new BMap.Point(118.137736,24.512129),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "高中培训机构",
+                description: "湖里区圆山南路800号A座新东方嘉禾欣悦里二楼、三楼",
+                phone: "0592-5107353",
+            },
+
+            "新东方同安校区（西安路）": {
+                point: new BMap.Point(118.156245,24.735426),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "高中培训机构",
+                description: "同安区松柏林北街41号二楼",
+                phone: "0592-5107101",
+            },
+
+            "新东方镇海玉滨城校区": {
+                point: new BMap.Point(118.093614,24.462791),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "高中培训机构",
+                description: "思明区公园南路33号（二楼）",
+                phone: "",
+            },
+
+            "新东方同安校区": {
+                point: new BMap.Point(118.158095,24.737337),
+                type: "xdf", // 新东方类型
+                level: "key",
+                schooltype: "初中培训机构",
+                description: "同安区大同街道三秀南里30-1智慧空间",
+                phone: "",
+            },
+        };
+
+        var markers = []; // 存储所有地图标记
+        var currentType = 'all'; // 当前筛选的教育类型（默认全部）
+        var currentLevel = 'all'; // 当前筛选的学校等级（默认全部）
+
+        // 4. 生成不同类型的图标（颜色与图例完全匹配）
+        function getSchoolIcon(type) {
+            // 颜色映射表（与CSS图例的background-color一致）
+            var colorMap = {
+                xdf: '#2e7d32', // 新东方：绿色
+                highschool: '#1976d2', // 高中：蓝色
+                middleschool: '#ef6c00', // 初中：橙色
+                primaryschool: '#c2185b' // 小学：粉色
+            };
+
+            // 定义优先级顺序
+            var priorityOrder = ['highschool', 'middleschool', 'primaryschool'];
+
+            // 根据优先级顺序获取颜色
+            var iconColor = null;
+            for (var i = 0; i < priorityOrder.length; i++) {
+                if (Array.isArray(type)) {
+                    if (type.includes(priorityOrder[i])) {
+                        iconColor = colorMap[priorityOrder[i]];
+                        break;
+                    }
+                } else {
+                    if (type === priorityOrder[i]) {
+                        iconColor = colorMap[priorityOrder[i]];
+                        break;
+                    }
+                }
+            }
+
+            // 如果没有匹配到任何优先级类型，则使用默认灰色
+            if (!iconColor) {
+                iconColor = colorMap[type] || '#9e9e9e';
+            }
+
+            // 正确创建SVG图标（圆形，带白色边框，避免与地图背景融合）
+            var svgStr = `
+                <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="10" cy="10" r="8" fill="${iconColor}" stroke="white" stroke-width="2"/>
+                </svg>
+            `;
+            // 将SVG转为Base64编码（百度地图支持的图标格式）
+            var svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+
+            // 返回百度地图图标对象（大小20x20，锚点在中心）
+            return new BMap.Icon(svgBase64, new BMap.Size(20, 20), {
+                anchor: new BMap.Size(10, 10) // 图标中心点与坐标点对齐
+            });
+        }
+
+        // 获取学校类型的优先级颜色类名
+        function getSchoolTypeClass(type) {
+            // 定义优先级顺序
+            var priorityOrder = ['highschool', 'middleschool', 'primaryschool'];
+
+            // 根据优先级顺序获取类型类名
+            for (var i = 0; i < priorityOrder.length; i++) {
+                if (Array.isArray(type)) {
+                    if (type.includes(priorityOrder[i])) {
+                        return priorityOrder[i];
+                    }
+                } else {
+                    if (type === priorityOrder[i]) {
+                        return priorityOrder[i];
+                    }
+                }
+            }
+
+            // 默认返回第一个类型
+            if (Array.isArray(type) && type.length > 0) {
+                return type[0];
+            }
+            return type;
+        }
+
+        // 5. 更新信息面板（根据筛选条件显示学校详情）
+        function updateInfo() {
+            var infoList = document.getElementById('infoList');
+            infoList.innerHTML = ''; // 清空原有内容
+
+            Object.keys(educationData).forEach(schoolName => {
+                var school = educationData[schoolName];
+                // 筛选条件：类型匹配 + 等级匹配
+                if ((currentType === 'all' || (Array.isArray(school.type) ? school.type.includes(currentType) : school.type === currentType)) &&
+                    (currentLevel === 'all' || school.level === currentLevel)) {
+                    var infoItem = document.createElement('div');
+                    var typeClass = getSchoolTypeClass(school.type);
+                    infoItem.className = `education-item ${typeClass}`;
+                    infoItem.innerHTML = `
+                        <h4>${schoolName}</h4>
+                        <p>学校等级：${school.level === 'key' ? '重点' : '普通'}</p>
+                        <p>办学类型：${school.schooltype}</p>
+                        <p>联系方式：${school.phone}</p>
+                        <p>地址：${school.description}</p>
+                    `;
+                    infoList.appendChild(infoItem);
+                }
+            });
+        }
+
+        // 6. 更新地图标记（根据筛选条件显示/隐藏标记，且图标颜色匹配类型）
+        function updateMarkers() {
+            clearMarkers(); // 先清除所有旧标记
+
+            Object.keys(educationData).forEach(schoolName => {
+                var school = educationData[schoolName];
+                // 筛选条件：类型匹配 + 等级匹配
+                if ((currentType === 'all' || (Array.isArray(school.type) ? school.type.includes(currentType) : school.type === currentType)) &&
+                    (currentLevel === 'all' || school.level === currentLevel)) {
+                    addMarker(schoolName, school); // 添加新标记
+                }
+            });
+        }
+
+        // 清除所有地图标记
+        function clearMarkers() {
+            markers.forEach(marker => map.removeOverlay(marker));
+            markers = []; // 清空标记数组
+        }
+
+        // 添加单个地图标记（含点击事件）
+        function addMarker(schoolName, school) {
+            // 6.1 获取当前学校类型对应的图标
+            var schoolIcon = getSchoolIcon(school.type);
+            // 6.2 创建标记（坐标为学校坐标，图标为类型对应的颜色）
+            var marker = new BMap.Marker(school.point, { icon: schoolIcon });
+            // 6.3 给标记添加标签（显示学校名称）
+            var label = new BMap.Label(schoolName, {
+                offset: new BMap.Size(20, -10) // 标签位置：标记右侧20px，上方10px
+            });
+            marker.setLabel(label);
+            // 6.4 点击标记时显示学校详情
+            marker.addEventListener("click", function() {
+                showSchoolInfo(schoolName, school);
+            });
+            // 6.5 添加标记到地图，并存入数组
+            map.addOverlay(marker);
+            markers.push(marker);
+        }
+
+        // 显示/隐藏信息面板
+        function toggleInfo() {
+            var infoPanel = document.getElementById('infoPanel');
+            infoPanel.style.display = infoPanel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 显示统计信息（弹窗展示各类型数量）
+        function showStatistics() {
+            var stats = {
+                xdf: 0,
+                highschool: 0,
+                middleschool: 0,
+                primaryschool: 0
+            };
+            // 统计各类型数量
+            Object.keys(educationData).forEach(schoolName => {
+                var types = educationData[schoolName].type;
+                if (!Array.isArray(types)) {
+                    types = [types];
+                }
+                types.forEach(type => {
+                    stats[type]++;
+                });
+            });
+            // 弹窗显示统计结果
+            alert(`当前教育资源统计：
+新东方：${stats.xdf}所
+高中：${stats.highschool}所
+初中：${stats.middleschool}所
+小学：${stats.primaryschool}所`);
+        }
+
+        // 点击标记时显示单个学校详情
+        function showSchoolInfo(schoolName, school) {
+            var infoPanel = document.getElementById('infoPanel');
+            var infoList = document.getElementById('infoList');
+            infoPanel.style.display = 'block'; // 确保面板显示
+            // 渲染单个学校详情
+            var typeClass = getSchoolTypeClass(school.type);
+            infoList.innerHTML = `
+                <div class="education-item ${typeClass}">
+                    <h4>${schoolName}</h4>
+                    <p>学校等级：${school.level === 'key' ? '重点' : '普通'}</p>
+                    <p>办学类型：${school.schooltype}</p>
+                    <p>联系方式：${school.phone}</p>
+                    <p>地址：${school.description}</p>
+                </div>
+            `;
+        }
+        // 切换所有标记标签的可见性
+        function toggleLabels() {
+            markers.forEach(function(marker) {
+                var label = marker.getLabel();
+                if (label) {
+                    label.setVisible(!label.isVisible());
+                }
+            });
+        }
+
+        // 7. 初始化页面（加载标记和信息）
+        updateInfo();
+        updateMarkers();
+
+        // 8. 监听筛选条件变化（类型筛选）
+        document.getElementById('educationType').addEventListener('change', function(e) {
+            currentType = e.target.value;
+            updateInfo(); // 更新信息面板
+            updateMarkers(); // 更新地图标记
+        });
+
+        // 9. 监听筛选条件变化（等级筛选）
+        document.getElementById('schoolLevel').addEventListener('change', function(e) {
+            currentLevel = e.target.value;
+            updateInfo(); // 更新信息面板
+            updateMarkers(); // 更新地图标记
+        });
+    </script>
+</body>
+</html>
